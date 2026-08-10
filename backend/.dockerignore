@@ -1,0 +1,17 @@
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.db
+*.sqlite
+uploads/
+logs/
+.env
+jobcopilot.db
+check_db.py
+start.bat
+init_db.bat
