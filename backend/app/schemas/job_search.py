@@ -30,9 +30,23 @@ class SearchProfileResponse(BaseModel):
 class SourceStatusItem(BaseModel):
     name: str
     portal: str | None = None
+    source_method: str | None = None
     status: str
     count: int = 0
     error: str | None = None
+
+
+class SourceAvailabilityItem(BaseModel):
+    name: str
+    display_name: str
+    portal: str
+    source_method: str
+    available: bool
+    requires_config: list[str] | None = None
+
+
+class SourcesStatusResponse(BaseModel):
+    sources: list[SourceAvailabilityItem] = Field(default_factory=list)
 
 
 class SearchSessionStatusResponse(BaseModel):
@@ -72,7 +86,10 @@ class JobSearchResultCard(BaseModel):
     freshness: str | None = None
     is_active: bool | None = None
     source: str | None = None
+    source_portal: str | None = None
     search_source: str | None = None
+    source_method: str | None = None
+    posted_at_precision: str | None = None
     source_url: str | None = None
     canonical_url: str | None = None
     application_url: str | None = None

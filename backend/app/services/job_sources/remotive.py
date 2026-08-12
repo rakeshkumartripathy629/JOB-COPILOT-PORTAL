@@ -5,7 +5,14 @@ from __future__ import annotations
 import logging
 from datetime import datetime
 
-from app.services.job_sources.base import JobSource, NormalizedJob, SourceError, SourceResult, SourceStatus
+from app.services.job_sources.base import (
+    JobSource,
+    NormalizedJob,
+    SourceError,
+    SourceMethod,
+    SourceResult,
+    SourceStatus,
+)
 from app.services.job_sources.http import SourceHTTPClient
 from app.utils.document_utils import html_to_text
 
@@ -18,6 +25,7 @@ class RemotiveSource(JobSource):
     name = "remotive"
     display_name = "Remotive"
     portal = "Remotive"
+    source_method = SourceMethod.AUTHORIZED_FEED
 
     def __init__(self) -> None:
         self._client = SourceHTTPClient(timeout=25, min_interval=1.0, retries=2)

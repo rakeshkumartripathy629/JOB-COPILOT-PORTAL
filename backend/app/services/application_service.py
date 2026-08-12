@@ -18,7 +18,7 @@ import json
 from datetime import datetime, timedelta
 from typing import Any
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import delete, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
@@ -42,7 +42,6 @@ from app.db.models.company import Company
 from app.db.models.cover_letter import CoverLetter
 from app.db.models.job import Job
 from app.db.models.notification import NotificationType
-from app.db.models.profile import Profile
 from app.db.models.resume import Resume
 from app.db.models.resume_version import ResumeVersion
 from app.db.models.user import User
@@ -399,12 +398,12 @@ async def list_applications(
             )
         )
 
-    from sqlalchemy import func
 
     total_stmt = select(func.count()).select_from(stmt.subquery())
     total = (await db.execute(total_stmt)).scalar_one()
 
-    sort_clauses = {        "newest": Application.created_at.desc(),
+    sort_clauses: dict[str, Any] = {
+        "newest": Application.created_at.desc(),
         "oldest": Application.created_at.asc(),
         "match_score": Application.match_score.desc().nullslast(),
         "priority": Application.priority.asc(),
@@ -1090,8 +1089,6 @@ async def delete_application(db: AsyncSession, user_id: int, application_id: int
         ApplicationDocument,
     )
     for model in related_tables:
-        await db.execute(
-            model.__table__.delete().where(model.application_id == application_id)
-        )
+        await db.execute(delete(model).where(model.application_id == application_id))
     await db.delete(app)
     await db.commit()

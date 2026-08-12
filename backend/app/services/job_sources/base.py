@@ -21,6 +21,37 @@ class SourceStatus(str, enum.Enum):
     ERROR = "ERROR"
 
 
+class SourceMethod(str, enum.Enum):
+    """How a listing was obtained from its portal.
+
+    OFFICIAL_API             — a documented portal API with credentials.
+    AUTHORIZED_FEED          — a public/official feed or board API (no keys).
+    PUBLIC_SEARCH_DISCOVERY  — found through a public search index (Google CSE),
+                               never through the portal itself.
+    PUBLIC_PAGE              — parsed directly from a public portal page.
+    UNKNOWN                  — acquisition method not asserted.
+    """
+
+    OFFICIAL_API = "OFFICIAL_API"
+    AUTHORIZED_FEED = "AUTHORIZED_FEED"
+    PUBLIC_SEARCH_DISCOVERY = "PUBLIC_SEARCH_DISCOVERY"
+    PUBLIC_PAGE = "PUBLIC_PAGE"
+    UNKNOWN = "UNKNOWN"
+
+
+class PostedAtPrecision(str, enum.Enum):
+    """How exact the ``posted_at`` timestamp is.
+
+    EXACT    — the portal exposed a concrete posting timestamp.
+    RELATIVE — derived from a relative phrase ("2 days ago"); a real time, but fuzzy.
+    UNKNOWN  — no posting time is available from the source.
+    """
+
+    EXACT = "EXACT"
+    RELATIVE = "RELATIVE"
+    UNKNOWN = "UNKNOWN"
+
+
 class SourceError(Exception):
     """Base error raised by a job source."""
 
@@ -74,6 +105,9 @@ class NormalizedJob:
     application_url: str | None = None
     is_active: bool = True
     source_metadata: dict[str, Any] = field(default_factory=dict)
+    source_method: SourceMethod = SourceMethod.UNKNOWN
+    source_portal: str | None = None
+    posted_at_precision: PostedAtPrecision = PostedAtPrecision.UNKNOWN
 
     @property
     def posting_verified(self) -> bool:
@@ -109,6 +143,9 @@ class NormalizedJob:
             "is_active",
             "search_source",
             "source_metadata",
+            "source_method",
+            "source_portal",
+            "posted_at_precision",
         ):
             out[field_name] = getattr(self, field_name)
         return out
@@ -131,6 +168,7 @@ class JobSource:
     name: str = "base"
     display_name: str = "Base"
     portal: str = "Unknown"
+    source_method: SourceMethod = SourceMethod.UNKNOWN
 
     #: Enable per-source call throttling / retries.
     timeout_seconds: float = 20.0

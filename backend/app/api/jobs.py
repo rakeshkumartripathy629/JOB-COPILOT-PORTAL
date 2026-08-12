@@ -1,3 +1,5 @@
+import contextlib
+
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,6 +15,8 @@ from app.schemas.job_search import (
     SearchSessionStatusResponse,
     SearchStartRequest,
     SearchStartResponse,
+    SourceAvailabilityItem,
+    SourcesStatusResponse,
 )
 from app.services.job_search_service import JobSearchService
 
@@ -174,6 +178,32 @@ async def get_suggestions(
         }
     )
     return result.get("matches", [])
+
+
+@router.get("/sources/status", response_model=SourcesStatusResponse)
+async def get_job_sources_status(
+    current_user=Depends(get_current_user),
+):
+    from app.services.live_search_service import get_sources_status
+
+    return SourcesStatusResponse(
+        sources=[SourceAvailabilityItem(**item) for item in get_sources_status()]
+    )
+
+
+@router.post("/search/{search_id}/refresh", response_model=SearchStartResponse)
+async def refresh_search(
+    search_id: int,
+    background_tasks: BackgroundTasks,
+    current_user=Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.services.live_search_service import refresh_search_session, run_search_task
+
+    if not await refresh_search_session(db, current_user.id, search_id):
+        raise HTTPException(status_code=404, detail="Search session not found")
+    background_tasks.add_task(run_search_task, search_id)
+    return SearchStartResponse(search_id=search_id, status="SEARCHING")
 
 
 @router.post("/refresh")
@@ -355,7 +385,7 @@ async def save_job(
         existing.status = ApplicationStatus.DRAFT.value
         await db.commit()
     else:
-        try:
+        with contextlib.suppress(application_service.DuplicateApplicationError):
             await application_service.create_application(
                 db,
                 user_id=current_user.id,
@@ -363,10 +393,7 @@ async def save_job(
                 application_source=ApplicationSource.SAVED_JOB.value,
                 status=ApplicationStatus.DRAFT.value,
             )
-        except application_service.DuplicateApplicationError:
-            pass
     return {"detail": "Job saved"}
-
 
 @router.delete("/{job_id}/save")
 async def unsave_job(
@@ -380,10 +407,8 @@ async def unsave_job(
     repo = ApplicationRepository(db)
     existing = await repo.get_by_user_and_job(current_user.id, job_id)
     if existing:
-        try:
+        with contextlib.suppress(application_service.ApplicationNotFoundError):
             await application_service.delete_application(db, current_user.id, existing.id)
-        except application_service.ApplicationNotFoundError:
-            pass
     return {"detail": "Job unsaved"}
 
 

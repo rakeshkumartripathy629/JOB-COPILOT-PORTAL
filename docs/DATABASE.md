@@ -11,7 +11,7 @@ SQLite via SQLAlchemy async; ORM models in `backend/app/db/models/`, migrations 
 | Profile | `profiles` | 1:1 user profile (headline, phone, location, summary, links) |
 | Skill | `skills` | Skills (name-unique) |
 | Company | `companies` | Employers referenced by jobs |
-| Job | `jobs` | Listings (title, description, requirements, skills, salary, source, source_url, job_type) |
+| Job | `jobs` | Listings (title, description, requirements, skills, salary, source, source_url, job_type, source_method, source_portal, posted_at_precision) |
 | Application | `applications` | Full CRM lifecycle — 15 statuses (DRAFT…OFFER/REJECTED/…), source, priority, match scores, follow-up state, linked document-version IDs |
 | ApplicationSnapshot | `application_snapshots` | Immutable job details frozen at application creation |
 | ApplicationStatusHistory | `application_status_history` | Every status transition (old/new, source, reason, timestamp) |
@@ -35,6 +35,9 @@ SQLite via SQLAlchemy async; ORM models in `backend/app/db/models/`, migrations 
 | JobRequirement | `job_requirements` | Deterministically extracted job requirements (skill, importance, critical flag) |
 | JobRequirementMatch | `job_requirement_matches` | Per (user, job, requirement) match rows: classification + skill_score + linked fact |
 | JobMatchEvidence | `job_match_evidence` | Persisted matched-fact evidence used in the Jobs UI |
+| JobSourceReference | `job_source_references` | One listing occurrence per portal: source, URL, canonical URL, `source_method`, `source_portal`, `posted_at_precision`, discovered/verified timestamps |
+| SearchSession | `search_sessions` | Resume-driven live search runs (queries, time/remote filters, requested sources, status) |
+| SearchSourceStatus | `search_source_statuses` | Real per-source status/count/error + `source_method` during a search session |
 
 ## Migrations
 
@@ -51,6 +54,9 @@ Migrations now exist:
   maps legacy UPPERCASE statuses to the new 15-status enum, and creates `application_snapshots`,
   `application_status_history`, `application_notes`, `application_tags`, `application_reminders`,
   `application_audit_events`, `application_documents` (+ indexes). Live DB upgraded and stamped `0008`.
+- `0009_add_source_method` — adds `source_method`, `source_portal`, `posted_at_precision` to `jobs` and
+  `job_source_references`, and `source_method` to `search_source_statuses`. Live DB upgraded and stamped
+  `0009`.
 
 **History (resolved):** `password_reset_tokens` previously had no migration, and the running DB was built by
 `Base.metadata.create_all` (app startup) rather than migrations, so `alembic_version` was missing. The DB has
@@ -67,6 +73,11 @@ Note: app startup still runs `create_all` — keep it, but rely on migrations fo
 
 ## Verification status
 
-- Backend test suite: **~130 tests pass**, stable across repeated runs.
+- Backend test suite: **~150 tests pass**, stable across repeated runs.
+- Live DB upgraded to `0009` (new columns applied); startup `create_all` adds model tables as before.
+- **Known drift:** `alembic check` reports a few model-vs-migration differences from 0007/0008 —
+  missing `ix_*_id` indexes and `applications.resume_id`/`cover_letter_id`/`resume_version_id` FKs.
+  The FKs cannot be added via SQLite `ALTER TABLE`, so they are intentionally left un-migrated;
+  the app deletes child rows explicitly. This drift predates 0009 and does not affect runtime.
 - The earlier analytics flakiness was caused by the app's startup job-refresh task (network + DB writes)
   racing the per-test DB reset and locking SQLite. Fixed via `ENABLE_BACKGROUND_JOB_REFRESH=false` in tests.

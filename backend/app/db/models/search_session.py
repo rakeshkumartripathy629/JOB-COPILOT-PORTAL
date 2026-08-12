@@ -54,6 +54,7 @@ class SearchSourceStatus(Base):
     session_id: Mapped[int] = mapped_column(Integer, ForeignKey("search_sessions.id"), nullable=False, index=True)
     source: Mapped[str] = mapped_column(String(100), nullable=False)
     portal: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    source_method: Mapped[str | None] = mapped_column(String(50), nullable=True)
     status: Mapped[str] = mapped_column(String(20), nullable=False)
     count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     error: Mapped[str | None] = mapped_column(Text, nullable=True)

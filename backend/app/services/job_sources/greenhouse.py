@@ -10,7 +10,14 @@ import logging
 import re
 from datetime import datetime
 
-from app.services.job_sources.base import JobSource, NormalizedJob, SourceError, SourceResult, SourceStatus
+from app.services.job_sources.base import (
+    JobSource,
+    NormalizedJob,
+    SourceError,
+    SourceMethod,
+    SourceResult,
+    SourceStatus,
+)
 from app.services.job_sources.http import SourceHTTPClient
 
 logger = logging.getLogger(__name__)
@@ -53,6 +60,7 @@ class GreenhouseSource(JobSource):
     name = "greenhouse"
     display_name = "Greenhouse"
     portal = "Greenhouse"
+    source_method = SourceMethod.AUTHORIZED_FEED
 
     def __init__(self) -> None:
         self._client = SourceHTTPClient(timeout=20, min_interval=0.4, retries=1)

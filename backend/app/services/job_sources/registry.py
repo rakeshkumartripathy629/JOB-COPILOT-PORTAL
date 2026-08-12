@@ -39,11 +39,19 @@ def register_all() -> None:
     from app.services.job_sources.ashby import AshbySource
     from app.services.job_sources.google_cse import GoogleCseSource
     from app.services.job_sources.greenhouse import GreenhouseSource
+    from app.services.job_sources.instahyre import InstahyreJobSource
     from app.services.job_sources.jsearch import JSearchSource
+    from app.services.job_sources.linkedin import LinkedInJobSource
+    from app.services.job_sources.naukri import NaukriJobSource
     from app.services.job_sources.remotive import RemotiveSource
+    from app.services.job_sources.wellfound import WellfoundJobSource
 
     for source in (
         GoogleCseSource(),
+        LinkedInJobSource(),
+        WellfoundJobSource(),
+        InstahyreJobSource(),
+        NaukriJobSource(),
         AdzunaSource(),
         JSearchSource(),
         GreenhouseSource(),

@@ -2,14 +2,12 @@
 
 from datetime import datetime, timedelta
 
-from sqlalchemy import select
-
 from app.db.models.application import (
     Application,
-    ApplicationStatus,
     ApplicationSnapshot,
+    ApplicationStatus,
 )
-from app.db.models.job import Job, JobType
+from app.db.models.job import JobType
 from app.repositories.resume_repo import ResumeRepository
 from tests.helpers import create_application, seed_job
 
@@ -148,7 +146,6 @@ async def test_rejected_requires_explicit_reopen(db, client, auth_headers):
     assert client.post(f"/applications/{app_id}/status", headers=headers, json={"status": "APPLIED"}).status_code == 200
 
     audit = client.get(f"/applications/{app_id}/audit", headers=headers).json()
-    reopened_entries = [a for a in audit if "reopened" in (a.get("metadata") or "")]
     assert any("reopened" in (a.get("metadata") or "") for a in audit)
 
 
@@ -244,7 +241,6 @@ async def test_analytics_does_not_count_drafts(db, client, auth_headers):
     app3 = await create_application(db, user_id, j3, ApplicationStatus.INTERVIEW)
     await create_application(db, user_id, j4, ApplicationStatus.DRAFT)
 
-    from app.db.models.application import ApplicationSnapshot
 
     for a in (app1, app2, app3):
         db.add(ApplicationSnapshot(application_id=a, user_id=user_id, job_title="x"))

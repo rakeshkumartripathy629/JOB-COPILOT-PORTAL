@@ -3,17 +3,17 @@ from fastapi.responses import PlainTextResponse, StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.db.models.application import ApplicationSnapshot
+from app.db.models.company import Company
+from app.db.models.job import Job
 from app.db.session import get_db
 from app.dependencies import get_current_user
-from app.db.models.application import ApplicationSnapshot
-from app.db.models.job import Job
-from app.db.models.company import Company
 from app.schemas.application import (
     ApplicationCreate,
     ApplicationDetailResponse,
     ApplicationResponse,
-    ApplicationUpdate,
     ApplicationSnapshotOut,
+    ApplicationUpdate,
     FollowUpRequest,
     NoteCreate,
     ReminderCreate,
@@ -478,4 +478,4 @@ async def delete_application(
     try:
         await application_service.delete_application(db, current_user.id, app_id)
     except application_service.ApplicationNotFoundError:
-        raise HTTPException(status_code=404, detail="Application not found")
+        raise HTTPException(status_code=404, detail="Application not found") from None

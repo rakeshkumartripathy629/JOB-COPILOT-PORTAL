@@ -10,7 +10,14 @@ import logging
 from datetime import datetime
 
 from app.config import settings
-from app.services.job_sources.base import JobSource, NormalizedJob, SourceError, SourceResult, SourceStatus
+from app.services.job_sources.base import (
+    JobSource,
+    NormalizedJob,
+    SourceError,
+    SourceMethod,
+    SourceResult,
+    SourceStatus,
+)
 from app.services.job_sources.http import SourceHTTPClient
 from app.services.job_sources.portal import identify_portal
 from app.utils.document_utils import html_to_text
@@ -42,6 +49,7 @@ class JSearchSource(JobSource):
     name = "jsearch"
     display_name = "JSearch"
     portal = "JSearch"
+    source_method = SourceMethod.OFFICIAL_API
 
     def __init__(self) -> None:
         self._client = SourceHTTPClient(timeout=25, min_interval=1.5, retries=2)

@@ -33,7 +33,7 @@ from app.services.job_freshness_service import Freshness, classify_freshness, wi
 from app.services.job_match_service import match_job
 from app.services.job_ranking_service import job_quality_score, rank_score
 from app.services.job_sources import registry
-from app.services.job_sources.base import NormalizedJob, SourceStatus
+from app.services.job_sources.base import NormalizedJob, PostedAtPrecision, SourceMethod, SourceStatus
 from app.services.query_generator import generate_queries
 from app.services.search_profile_service import SearchProfile, build_search_profile, parse_resume_payload
 
@@ -41,14 +41,6 @@ logger = logging.getLogger(__name__)
 
 MAX_TOTAL_RESULTS = 150
 MAX_EXTERNAL_CALLS = 60
-
-#: Portals with no dedicated source; jobs are only discoverable via Google search.
-UNAVAILABLE_PORTALS = {
-    "linkedin": ("LinkedIn", "No direct API; LinkedIn jobs surface via Google search."),
-    "indeed": ("Indeed", "No direct API; Indeed jobs surface via Google search."),
-    "naukri": ("Naukri", "No direct API; Naukri jobs surface via Google search."),
-    "wellfound": ("Wellfound", "No direct API; Wellfound jobs surface via Google search."),
-}
 
 
 class NoResumeError(Exception):
@@ -63,6 +55,15 @@ def _job_type_from_remote(remote_type: str | None) -> JobType | None:
     if remote_type == "onsite":
         return JobType.ONSITE
     return None
+
+
+def _posted_at_precision(job: NormalizedJob) -> str:
+    """Resolve the posting-time precision for a normalized job."""
+    if job.posted_at_precision != PostedAtPrecision.UNKNOWN:
+        return str(job.posted_at_precision.value)
+    if job.posted_at is not None:
+        return PostedAtPrecision.EXACT.value
+    return PostedAtPrecision.UNKNOWN.value
 
 
 def _best_of(jobs: list[NormalizedJob]) -> NormalizedJob:
@@ -158,23 +159,11 @@ async def start_search(
                 session_id=session.id,
                 source=name,
                 portal=source.display_name if source else name,
+                source_method=source.source_method.value if source else SourceMethod.UNKNOWN.value,
                 status=SourceStatus.SEARCHING.value,
                 count=0,
             )
         )
-
-    for name, (portal, note) in UNAVAILABLE_PORTALS.items():
-        if name not in requested and "google_cse" in requested:
-            db.add(
-                SearchSourceStatus(
-                    session_id=session.id,
-                    source=name,
-                    portal=portal,
-                    status=SourceStatus.UNAVAILABLE.value,
-                    count=0,
-                    error=note,
-                )
-            )
 
     await db.commit()
     await db.refresh(session)
@@ -254,10 +243,12 @@ async def _run_search(db: AsyncSession, session_id: int) -> None:
             )
         ).scalar_one_or_none()
         if not row:
+            src = registry.get(source)
             row = SearchSourceStatus(
                 session_id=session.id,
                 source=source,
-                portal=source,
+                portal=src.display_name if src else source,
+                source_method=src.source_method.value if src else SourceMethod.UNKNOWN.value,
                 status=status,
                 count=count,
                 error=error,
@@ -342,9 +333,12 @@ async def _run_search(db: AsyncSession, session_id: int) -> None:
                 dedupe_key=dedupe_key,
                 skills_required=fields["skills_required"],
                 source=best.source,
+                source_portal=best.source_portal or best.source,
                 source_url=best.source_url,
                 source_job_id=best.source_job_id,
                 search_source=best.search_source,
+                source_method=best.source_method.value if best.source_method else None,
+                posted_at_precision=_posted_at_precision(best),
                 canonical_url=best.canonical_url,
                 application_url=best.application_url or best.canonical_url,
                 remote_type=best.remote_type,
@@ -383,9 +377,12 @@ async def _run_search(db: AsyncSession, session_id: int) -> None:
                     JobSourceReference(
                         job_id=job_row.id,
                         source=occurrence.source,
+                        source_portal=occurrence.source_portal or occurrence.source,
                         source_job_id=occurrence.source_job_id,
                         source_url=occurrence.source_url,
                         search_source=occurrence.search_source,
+                        source_method=occurrence.source_method.value if occurrence.source_method else None,
+                        posted_at_precision=_posted_at_precision(occurrence),
                         canonical_url=occurrence.canonical_url,
                         discovered_at=occurrence.discovered_at or now,
                         last_verified_at=now,
@@ -536,6 +533,7 @@ async def get_session_with_status(db: AsyncSession, user_id: int, session_id: in
             {
                 "name": s.source,
                 "portal": s.portal,
+                "source_method": s.source_method,
                 "status": s.status,
                 "count": s.count,
                 "error": s.error,
@@ -595,7 +593,17 @@ async def get_search_results(
                 company=company,
                 source_names=source_names,
                 primary_source=primary_source,
-                refs=[{"source": r.source, "source_url": r.source_url, "search_source": r.search_source} for r in refs],
+                refs=[
+                    {
+                        "source": r.source,
+                        "source_portal": r.source_portal,
+                        "source_url": r.source_url,
+                        "search_source": r.search_source,
+                        "source_method": r.source_method,
+                        "posted_at_precision": r.posted_at_precision,
+                    }
+                    for r in refs
+                ],
                 freshness=freshness,
             )
         )
@@ -637,7 +645,10 @@ def _serialize_result(
         "freshness": freshness.value,
         "is_active": job.is_active,
         "source": primary_source,
+        "source_portal": job.source_portal or primary_source,
         "search_source": job.search_source,
+        "source_method": job.source_method,
+        "posted_at_precision": job.posted_at_precision,
         "source_url": job.source_url,
         "canonical_url": job.canonical_url,
         "application_url": job.application_url,
@@ -745,5 +756,64 @@ async def delete_search_session(db: AsyncSession, user_id: int, session_id: int)
     if not session or session.user_id != user_id:
         return False
     await db.delete(session)
+    await db.commit()
+    return True
+
+
+def get_sources_status() -> list[dict]:
+    """Real availability of every registered job source (no network calls).
+
+    ``available`` reflects configured credentials; the search runner additionally
+    observes per-request availability via ``SearchSourceStatus`` rows.
+    """
+    out: list[dict] = []
+    for source in registry.all():
+        requires = getattr(source, "requires_config", None)
+        missing = list(requires()) if callable(requires) else []
+        out.append(
+            {
+                "name": source.name,
+                "display_name": source.display_name,
+                "portal": source.portal,
+                "source_method": source.source_method.value,
+                "available": source.is_available(),
+                "requires_config": missing or None,
+            }
+        )
+    out.sort(key=lambda item: item["name"])
+    return out
+
+
+async def refresh_search_session(db: AsyncSession, user_id: int, session_id: int) -> bool:
+    """Reset a finished search session so it can be re-run against live sources.
+
+    Returns True when reset (caller schedules a new background run); the search runner
+    creates fresh results and statuses, so no stale results survive the refresh.
+    """
+    session = (await db.execute(select(SearchSession).where(SearchSession.id == session_id))).scalar_one_or_none()
+    if not session or session.user_id != user_id:
+        return False
+    session.status = "SEARCHING"
+    session.error = None
+    session.started_at = datetime.utcnow()
+    session.completed_at = None
+
+    results = (
+        (await db.execute(select(JobSearchResult).where(JobSearchResult.session_id == session.id))).scalars().all()
+    )
+    for result in results:
+        await db.delete(result)
+
+    statuses = (
+        (await db.execute(select(SearchSourceStatus).where(SearchSourceStatus.session_id == session.id)))
+        .scalars()
+        .all()
+    )
+    for row in statuses:
+        row.status = SourceStatus.SEARCHING.value
+        row.count = 0
+        row.error = None
+        row.updated_at = datetime.utcnow()
+
     await db.commit()
     return True

@@ -7,7 +7,7 @@ made from memory. Goal: everything real, nothing dummy.
 
 | Check | Result |
 |-------|--------|
-| Backend `pytest` | **~130 passed** (incl. 22 application + CRM tests; full suite green) |
+| Backend `pytest` | **~150 passed** (incl. 22 application + CRM tests; full suite green) |
 | Backend `ruff check .` | **clean** |
 | Backend `mypy app` | **clean** |
 | Frontend `npm run lint` | **clean** |
@@ -21,6 +21,8 @@ made from memory. Goal: everything real, nothing dummy.
 | Profile | ✅ real | `users.py` PATCH `/users/me/profile`, `profiles` table |
 | Jobs CRUD | ✅ real | `jobs.py` |
 | Live job aggregation | ✅ real | `live_jobs_service.py` (Remotive/Jobicy/Arbeitnow) + `job_search_service.py` (JSearch) |
+| Dedicated portal sources | ✅ real | `job_sources/linkedin.py`, `wellfound.py`, `instahyre.py`, `naukri.py` (Google CSE discovery); every source reports `source_method` + `posted_at_precision` |
+| Source status API | ✅ real | `GET /jobs/sources/status` (availability/method/required keys); per-session per-source progress in `GET /jobs/search/{id}/status` |
 | Job search/filters | ✅ real | query params in `jobs.py` |
 | Applications pipeline | ✅ real | `applications.py` — full CRM: 15 statuses, snapshots, timeline, audit, notes, tags, reminders, follow-ups, analytics, CSV export, frozen document versions |
 | Application Management + CRM | ✅ real | `application_service.py` + `applications.py` + `ApplicationDetailsPage` |
@@ -120,9 +122,7 @@ never an LLM guess.
    vault extraction/verification/isolation/idempotency, bounded scores, persistence, critical-missing
    honesty, evidence grounding, should-apply/ROI, and API access control.
 
-## Phase 5 — Application Management + Tracking + CRM (live)
-
-Full application lifecycle management, all persisted and user-scoped — nothing fake.
+## Phase 5 — Application Management + Tracking + CRM (live)Full application lifecycle management, all persisted and user-scoped — nothing fake.
 
 1. ✅ **15 statuses** (`DRAFT`→`READY`→`APPLIED`→`VIEWED`→`RECRUITER_CONTACT`→`ASSESSMENT`→`INTERVIEW`→
    `TECHNICAL_ROUND`→`FINAL_ROUND`→`OFFER`/`REJECTED`/`WITHDRAWN`/`EXPIRED`/`FAILED`, plus `UNKNOWN`).
@@ -150,3 +150,23 @@ Full application lifecycle management, all persisted and user-scoped — nothing
 11. ✅ **Frontend** — `ApplicationsPage` (stats cards, needs-attention, search/filter/sort, status advance,
     delete, CSV export) and `ApplicationDetailsPage` (`/applications/:id` with Overview/Timeline/Notes/
     Documents/Follow-up/Reminders tabs), routes wired in `App.tsx`.
+
+## Phase 6 — Job-source metadata + dedicated portal sources (live)
+
+1. ✅ **Dedicated portal adapters** — `LinkedInJobSource`, `WellfoundJobSource`, `InstahyreJobSource`,
+   `NaukriJobSource` each register their own `site:`-scoped Google Custom Search source
+   (`PUBLIC_SEARCH_DISCOVERY`), replacing the old `UNAVAILABLE_PORTALS` special-casing. Real data flows
+   when `GOOGLE_API_KEY` + `GOOGLE_CSE_ID` are configured; otherwise they report `UNAVAILABLE` honestly.
+2. ✅ **Acquisition metadata** — `SourceMethod` (`OFFICIAL_API`/`AUTHORIZED_FEED`/`PUBLIC_SEARCH_DISCOVERY`/
+   `PUBLIC_PAGE`/`UNKNOWN`) and `PostedAtPrecision` (`EXACT`/`RELATIVE`/`UNKNOWN`) are stored on `jobs`,
+   `job_source_references`, and `search_source_statuses` (migration `0009`).
+3. ✅ **Source status endpoint** — `GET /jobs/sources/status` returns real availability + method + required
+   config keys for every registered source; search status shows per-source `SEARCHING/SUCCESS/EMPTY/
+   UNAVAILABLE/RATE_LIMITED/ERROR`.
+4. ✅ **Refresh = real re-search** — `POST /jobs/search/{id}/refresh` resets a session and re-runs it
+   against live sources (stale results cleared first).
+5. ✅ **Strict time filters** — `1h/24h/3d/7d` include only jobs with a verified posting time
+   (`posted_at_precision` EXACT/RELATIVE); `UNKNOWN` jobs surface only under "any".
+6. ✅ **Tests** — `tests/test_source_adapters.py` (mocked Google responses, 403 handling, metadata
+   propagation through the pipeline, sources/status endpoint, session refresh) + existing resume-search
+   suite. Full suite ~150 tests green; `ruff`/`mypy` clean.

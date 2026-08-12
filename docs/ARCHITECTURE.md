@@ -16,8 +16,8 @@ copilot/
 │   │   ├── core/          auth/deps/security helpers
 │   │   ├── config.py      pydantic-settings env config
 │   │   └── main.py        FastAPI app factory + router mounting
-│   ├── alembic/           migrations (0001_initial_schema … 0008_add_application_management)
-│   └── tests/             async pytest suite (~130 tests)
+│   ├── alembic/           migrations (0001_initial_schema … 0009_add_source_method)
+│   └── tests/             async pytest suite (~150 tests)
 ├── frontend/              React 18 + Vite + TS, React Router, TanStack Query, Zustand, Axios
 │   └── src/
 │       ├── pages/         Login, Signup, ForgotPassword, Dashboard, Resume, Jobs, Applications,
@@ -38,8 +38,18 @@ copilot/
 - **LangGraph** state-graph agent for job matching (`app/agents/job_match_agent.py`).
 - **httpx** for outbound fetches (job feeds, job-page analysis).
 - **python-jose + passlib** for JWT and password hashing.
-- External APIs: OpenAI-compatible LLM (Groq via `OPENAI_BASE_URL`), JSearch (RapidAPI), and the free
-  Remotive / Jobicy / Arbeitnow feeds.
+- External APIs: OpenAI-compatible LLM (Groq via `OPENAI_BASE_URL`), JSearch (RapidAPI), the free
+  Remotive / Jobicy / Arbeitnow feeds, and Google Custom Search for portal discovery.
+
+## Job source layer
+
+`app/services/job_sources/` implements a pluggable `JobSource` interface registered in
+`JobSourceRegistry`. Every source declares its acquisition **method** (`SourceMethod`) and posting-time
+**precision** (`PostedAtPrecision`); the live-search pipeline stores both on `jobs`,
+`job_source_references`, and `search_source_statuses`. Portals without a direct integration each get a
+dedicated `GoogleCsePortalSource` adapter (LinkedIn, Wellfound, Instahyre, Naukri) that scopes a Google
+CSE query by `site:` operator. `GET /jobs/sources/status` exposes real availability; `POST
+/jobs/search/{id}/refresh` re-runs a finished search against live sources. See `docs/JOB_SOURCES.md`.
 
 ## Frontend stack
 

@@ -15,6 +15,7 @@ PORTAL_RULES: list[tuple[re.Pattern, str]] = [
     (re.compile(r"(^|\.)indeed\.com$"), "Indeed"),
     (re.compile(r"(^|\.)naukri\.com$"), "Naukri"),
     (re.compile(r"(^|\.)wellfound\.com$"), "Wellfound"),
+    (re.compile(r"(^|\.)instahyre\.com$"), "Instahyre"),
     (re.compile(r"(^|\.)boards\.greenhouse\.io$"), "Greenhouse"),
     (re.compile(r"(^|\.)job-boards\.greenhouse\.io$"), "Greenhouse"),
     (re.compile(r"(^|\.)jobs\.ashbyhq\.com$"), "Ashby"),

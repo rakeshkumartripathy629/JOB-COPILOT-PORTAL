@@ -96,6 +96,8 @@ async def rebuild_career_vault(db: AsyncSession, user_id: int) -> dict:
     )
     await db.flush()
 
+    existing = {k: f for k, f in existing.items() if f.status not in _AUTO_STATUSES}
+
     created = 0
     kept = 0
 
@@ -119,8 +121,12 @@ async def rebuild_career_vault(db: AsyncSession, user_id: int) -> dict:
                 return None
             existing_fact.value = value
             existing_fact.description = description
-            existing_fact.confidence = confidence
-            existing_fact.status = status
+            if existing_fact.status not in (
+                CareerFactStatus.VERIFIED.value,
+                CareerFactStatus.USER_CONFIRMED.value,
+            ):
+                existing_fact.confidence = confidence
+                existing_fact.status = status
             kept += 1
             return existing_fact
         fact = CareerFact(
