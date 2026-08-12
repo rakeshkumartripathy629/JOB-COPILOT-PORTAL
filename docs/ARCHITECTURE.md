@@ -16,12 +16,13 @@ copilot/
 │   │   ├── core/          auth/deps/security helpers
 │   │   ├── config.py      pydantic-settings env config
 │   │   └── main.py        FastAPI app factory + router mounting
-│   ├── alembic/           migrations (currently 0001_initial_schema, 0002_add_automation_job_url)
-│   └── tests/             async pytest suite (33 tests)
+│   ├── alembic/           migrations (0001_initial_schema … 0008_add_application_management)
+│   └── tests/             async pytest suite (~130 tests)
 ├── frontend/              React 18 + Vite + TS, React Router, TanStack Query, Zustand, Axios
 │   └── src/
 │       ├── pages/         Login, Signup, ForgotPassword, Dashboard, Resume, Jobs, Applications,
-│       │                  CoverLetters, InterviewPrep, Automation, Notifications, Admin, NotFound
+│       │                  ApplicationDetails, CoverLetters, InterviewPrep, Automation,
+│       │                  Notifications, Admin, NotFound
 │       ├── services/api.ts  single axios instance (auth interceptor + silent refresh)
 │       ├── store/         authStore, themeStore
 │       └── components/    shared UI
@@ -48,6 +49,26 @@ copilot/
   (`http://localhost:8001`, override via `VITE_API_URL`) and a request interceptor that attaches the access
   token and transparently retries once after a `/auth/refresh`.
 - One API service module (`services/api.ts`); no per-feature mock layer, no seeded demo rows.
+
+## Application Management + CRM module
+
+`app/services/application_service.py` owns all application lifecycle rules (thin router, fat service):
+
+- **15 statuses** with validated transitions (`can_transition` in the model); terminal → reopen allowed and
+  recorded; `UNKNOWN` → anything; same-status is a no-op.
+- **Immutable snapshot** (`application_snapshots`) freezes job details at creation so the job row can change
+  without corrupting the application record.
+- **Frozen document versions** (`application_documents`) capture the resume/cover-letter used; downloads are
+  HMAC-signed URLs with 24h expiry (secret in `settings.SECRET_KEY`).
+- **Tracking** — status history, audit events, notes, tags, reminders (each transition/reminder can create a
+  `Notification`).
+- **Analytics/performance/export** — `get_analytics`, `get_performance` (n≥3 suppression), `export_csv`; all
+  derived from real rows, drafts excluded.
+- **Follow-up assistant** — recommends only after 7 days and drafts a message; never sends.
+- **`delete_application`** removes all CRM rows (snapshot/history/notes/tags/reminders/audit/documents) before
+  deleting the application (no FK cascades).
+- Frontend: `/applications` dashboard (stats, needs-attention, search/filter/sort, CSV export) and
+  `/applications/:id` details page (Overview / Timeline / Notes / Documents / Follow-up / Reminders tabs).
 
 ## Request flow
 

@@ -12,7 +12,14 @@ SQLite via SQLAlchemy async; ORM models in `backend/app/db/models/`, migrations 
 | Skill | `skills` | Skills (name-unique) |
 | Company | `companies` | Employers referenced by jobs |
 | Job | `jobs` | Listings (title, description, requirements, skills, salary, source, source_url, job_type) |
-| Application | `applications` | Pipeline: SAVED / APPLIED / INTERVIEW / OFFER / REJECTED + notes/reminders |
+| Application | `applications` | Full CRM lifecycle — 15 statuses (DRAFT…OFFER/REJECTED/…), source, priority, match scores, follow-up state, linked document-version IDs |
+| ApplicationSnapshot | `application_snapshots` | Immutable job details frozen at application creation |
+| ApplicationStatusHistory | `application_status_history` | Every status transition (old/new, source, reason, timestamp) |
+| ApplicationNote | `application_notes` | Free-form notes per application |
+| ApplicationTag | `application_tags` | Tags (unique per user/app/tag) |
+| ApplicationReminder | `application_reminders` | FOLLOW_UP / INTERVIEW / ASSESSMENT_DEADLINE / RECRUITER_RESPONSE with due_at + status |
+| ApplicationAuditEvent | `application_audit_events` | Create/update/status-change audit trail (JSON metadata) |
+| ApplicationDocument | `application_documents` | Frozen resume / tailored-resume / cover-letter versions + HMAC-signed download URLs |
 | Resume | `resumes` | Uploaded resume + parsed text |
 | ResumeVersion | `resume_versions` | Version history per resume |
 | CoverLetter | `cover_letters` | Generated letters |
@@ -40,6 +47,10 @@ Migrations now exist:
   `job_source_references`, `job_search_sessions`, `job_search_results` + match columns).
 - `0007_add_career_evidence` — creates `career_facts`, `career_evidence`, `job_requirements`,
   `job_requirement_matches`, `job_match_evidence`. The live DB is upgraded and stamped `0007`.
+- `0008_add_application_management` — adds application-source/priority/follow-up/document-version columns,
+  maps legacy UPPERCASE statuses to the new 15-status enum, and creates `application_snapshots`,
+  `application_status_history`, `application_notes`, `application_tags`, `application_reminders`,
+  `application_audit_events`, `application_documents` (+ indexes). Live DB upgraded and stamped `0008`.
 
 **History (resolved):** `password_reset_tokens` previously had no migration, and the running DB was built by
 `Base.metadata.create_all` (app startup) rather than migrations, so `alembic_version` was missing. The DB has
@@ -51,10 +62,11 @@ Note: app startup still runs `create_all` — keep it, but rely on migrations fo
 - `automation_sessions` uses `steps` / `result` as JSON strings (no SQLAlchemy JSON type) — functional but
   fragile.
 - `datetime.utcnow` defaults are naive-UTC (deprecation warnings on Python 3.12+; removal in 3.16).
-- No `ondelete` cascade / FK enforcement on some relationships.
+- No `ondelete` cascade / FK enforcement on some relationships — `delete_application` explicitly removes all
+  CRM rows before deleting the application.
 
 ## Verification status
 
-- Backend test suite: **115 tests pass**, stable across repeated runs.
+- Backend test suite: **~130 tests pass**, stable across repeated runs.
 - The earlier analytics flakiness was caused by the app's startup job-refresh task (network + DB writes)
   racing the per-test DB reset and locking SQLite. Fixed via `ENABLE_BACKGROUND_JOB_REFRESH=false` in tests.

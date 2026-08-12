@@ -7,6 +7,7 @@ import DashboardPage from "./pages/DashboardPage";
 import ResumePage from "./pages/ResumePage";
 import JobsPage from "./pages/JobsPage";
 import ApplicationsPage from "./pages/ApplicationsPage";
+import ApplicationDetailsPage from "./pages/ApplicationDetailsPage";
 import CoverLetterPage from "./pages/CoverLetterPage";
 import InterviewPrepPage from "./pages/InterviewPrepPage";
 import AutomationPage from "./pages/AutomationPage";
@@ -41,6 +42,7 @@ export default function App() {
           <Route path="/vault" element={<CareerVaultPage />} />
           <Route path="/intel" element={<JobIntelPage />} />
           <Route path="/applications" element={<ApplicationsPage />} />
+          <Route path="/applications/:id" element={<ApplicationDetailsPage />} />
           <Route path="/cover-letters" element={<CoverLetterPage />} />
           <Route path="/interview-prep" element={<InterviewPrepPage />} />
           <Route path="/automation" element={<AutomationPage />} />

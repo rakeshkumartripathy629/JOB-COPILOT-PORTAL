@@ -7,7 +7,7 @@ made from memory. Goal: everything real, nothing dummy.
 
 | Check | Result |
 |-------|--------|
-| Backend `pytest` | **115 passed** (incl. 35 advanced-match + career-evidence tests; full suite green) |
+| Backend `pytest` | **~130 passed** (incl. 22 application + CRM tests; full suite green) |
 | Backend `ruff check .` | **clean** |
 | Backend `mypy app` | **clean** |
 | Frontend `npm run lint` | **clean** |
@@ -22,7 +22,8 @@ made from memory. Goal: everything real, nothing dummy.
 | Jobs CRUD | ✅ real | `jobs.py` |
 | Live job aggregation | ✅ real | `live_jobs_service.py` (Remotive/Jobicy/Arbeitnow) + `job_search_service.py` (JSearch) |
 | Job search/filters | ✅ real | query params in `jobs.py` |
-| Applications pipeline | ✅ real | `applications.py`, statuses SAVED→APPLIED→INTERVIEW→OFFER/REJECTED |
+| Applications pipeline | ✅ real | `applications.py` — full CRM: 15 statuses, snapshots, timeline, audit, notes, tags, reminders, follow-ups, analytics, CSV export, frozen document versions |
+| Application Management + CRM | ✅ real | `application_service.py` + `applications.py` + `ApplicationDetailsPage` |
 | Resume upload + parse | ✅ real | `resumes.py` + LLM normalization |
 | Resume versions | ✅ real | `resume_versions` |
 | Cover letters | ✅ real | `cover_letters.py` (LLM) |
@@ -44,11 +45,15 @@ made from memory. Goal: everything real, nothing dummy.
 ## Frontend pages (all wired to real API via `services/api.ts`)
 
 `/login`, `/signup`, `/forgot-password`, `/dashboard`, `/resume`, `/jobs`, `/vault`, `/applications`,
-`/cover-letters`, `/interview-prep`, `/automation`, `/notifications`, `/admin` + `*` NotFound.
+`/applications/:id`, `/cover-letters`, `/interview-prep`, `/automation`, `/notifications`, `/admin` + `*` NotFound.
 No page contains mock/sample/dummy data (verified by scan). Dashboard and Jobs render server data only.
 Jobs cards show confidence + requirement counts; the **Match details** modal renders the requirement matrix,
 evidence quotes, should-apply verdict and apply-ROI. The **Career Vault** page lists every fact with its source
-evidence and verify/confirm/reject controls.
+evidence and verify/confirm/reject controls. The **Applications** page shows live stats (total/applied/interviews/
+offers/rejected/response-rate), a needs-attention queue, search/filter/sort, CSV export, and one-click status
+advance; the **Application details** page has Overview (notes, priority, tags, frozen job snapshot, follow-up
+status), Timeline (status history + audit log), Notes, Documents (frozen versions with HMAC-signed downloads),
+Follow-up (drafted message, never auto-sent) and Reminders (create + complete) tabs.
 
 ## Bug fixes completed (Phase 1)
 
@@ -114,3 +119,34 @@ never an LLM guess.
 9. ✅ **Tests** — 35 new tests in `tests/test_advanced_match.py` covering classification strictness,
    vault extraction/verification/isolation/idempotency, bounded scores, persistence, critical-missing
    honesty, evidence grounding, should-apply/ROI, and API access control.
+
+## Phase 5 — Application Management + Tracking + CRM (live)
+
+Full application lifecycle management, all persisted and user-scoped — nothing fake.
+
+1. ✅ **15 statuses** (`DRAFT`→`READY`→`APPLIED`→`VIEWED`→`RECRUITER_CONTACT`→`ASSESSMENT`→`INTERVIEW`→
+   `TECHNICAL_ROUND`→`FINAL_ROUND`→`OFFER`/`REJECTED`/`WITHDRAWN`/`EXPIRED`/`FAILED`, plus `UNKNOWN`).
+   Transitions are validated (`can_transition`): terminal → reopen (`DRAFT`/`READY`, recorded in history),
+   `UNKNOWN` → anything, same-status is a no-op. Invalid transition → **422**.
+2. ✅ **Immutable job snapshot** — `application_snapshots` freezes title/company/location/salary/description/
+   requirements/URLs/scores at creation time.
+3. ✅ **Frozen document versions** — `application_documents` stores resume / tailored-resume / cover-letter
+   versions used at creation; downloads via HMAC-signed URLs (24h expiry, **403** on bad token).
+4. ✅ **Timeline + audit** — `application_status_history` (per-transition, with source/reason) and
+   `application_audit_events` (create/update/status-change, JSON metadata).
+5. ✅ **Notes, tags, reminders, follow-ups** — `application_notes`, `application_tags` (unique per user/app/
+   tag), `application_reminders` (FOLLOW_UP/INTERVIEW/ASSESSMENT_DEADLINE/RECRUITER_RESPONSE, complete flow +
+   notifications). Follow-up assistant recommends only after 7 days and **drafts** a message (never sends);
+   `needs-attention` queue combines due follow-ups + upcoming reminders.
+6. ✅ **Analytics + performance** — `GET /applications/analytics` (counts, response/interview/offer rates,
+   funnel) and `/performance` (best sources/companies/locations/jobs with n≥3 suppression) — drafts excluded.
+7. ✅ **Duplicate protection** — creating against an existing job/URL returns **409**.
+8. ✅ **CSV export** — `GET /applications/export.csv` with tags column; wired to the frontend export button.
+9. ✅ **Migration** — `0008_add_application_management` adds columns + 7 tables + indexes; legacy UPPERCASE
+   statuses mapped to the new set; applied to live DB (816 jobs preserved).
+10. ✅ **Tests** — `tests/test_applications.py` (rewritten) + `tests/test_applications_crm.py` = 22 tests;
+    legacy `SAVED` references removed from analytics agent, jobs save/unsave (creates a real `DRAFT`
+    application), and `delete_application` cleans up all CRM rows.
+11. ✅ **Frontend** — `ApplicationsPage` (stats cards, needs-attention, search/filter/sort, status advance,
+    delete, CSV export) and `ApplicationDetailsPage` (`/applications/:id` with Overview/Timeline/Notes/
+    Documents/Follow-up/Reminders tabs), routes wired in `App.tsx`.

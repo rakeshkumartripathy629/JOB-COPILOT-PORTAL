@@ -71,11 +71,134 @@ export interface Application {
   status: string
   applied_at: string | null
   responded_at: string | null
+  application_source: string
+  priority: string
+  ai_priority: string | null
+  resume_id: number | null
+  resume_version_id: number | null
+  tailored_resume_id: number | null
+  cover_letter_id: number | null
+  cover_letter_version_id: number | null
+  application_answer_version_id: number | null
+  application_packet_id: number | null
   notes: string | null
+  follow_up_recommended_at: string | null
+  follow_up_reason: string | null
+  follow_up_status: string | null
   job_title: string | null
   company_name: string | null
+  match_score: number | null
   created_at: string
   updated_at: string
+}
+
+export interface ApplicationSnapshot {
+  job_title: string
+  company_name: string | null
+  location: string | null
+  country: string | null
+  remote_type: string | null
+  salary_min: number | null
+  salary_max: number | null
+  salary_currency: string | null
+  description: string | null
+  requirements: string | null
+  responsibilities: string | null
+  source: string | null
+  source_url: string | null
+  application_url: string | null
+  canonical_url: string | null
+  posted_at: string | null
+  match_score: number | null
+  match_confidence: number | null
+  job_quality_score: number | null
+  created_at: string | null
+}
+
+export interface ApplicationTimelineEntry {
+  old_status: string | null
+  new_status: string | null
+  source: string | null
+  reason: string | null
+  changed_at: string
+}
+
+export interface ApplicationAuditEntry {
+  event: string
+  timestamp: string
+  metadata: Record<string, unknown> | null
+}
+
+export interface ApplicationNote {
+  id: number
+  note: string
+  created_at: string
+}
+
+export interface ApplicationDocument {
+  id: number
+  doc_type: string
+  version_label: string | null
+  download_url: string
+}
+
+export interface ApplicationDetail extends Application {
+  snapshot: ApplicationSnapshot | null
+  tags: string[]
+  documents: ApplicationDocument[]
+  timeline: ApplicationTimelineEntry[]
+}
+
+export interface ApplicationAnalytics {
+  total_applications: number
+  drafts: number
+  ready: number
+  applied: number
+  responses: number
+  interviews: number
+  final_rounds: number
+  offers: number
+  rejected: number
+  withdrawn: number
+  response_rate: number
+  interview_rate: number
+  offer_rate: number
+  funnel: {
+    applied: number
+    responses: number
+    interviews: number
+    final_rounds: number
+    offers: number
+  }
+}
+
+export interface NeedsAttentionItem {
+  kind: 'FOLLOW_UP' | 'REMINDER'
+  application_id: number
+  reminder_id?: number
+  reminder_type?: string
+  job_title: string | null
+  company_name: string | null
+  reason: string
+  due_at: string
+}
+
+export interface ApplicationReminder {
+  id: number
+  application_id: number
+  reminder_type: string
+  due_at: string
+  status: string
+  title: string | null
+  message: string | null
+}
+
+export interface FollowUpResponse {
+  recommended: boolean
+  reason: string | null
+  recommended_at: string
+  message: string
+  mode: string
 }
 
 export interface Notification {
