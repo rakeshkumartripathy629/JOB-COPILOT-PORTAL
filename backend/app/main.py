@@ -15,6 +15,7 @@ from app.api import (
     automation,
     career,
     cover_letters,
+    extension,
     interviews,
     jobs,
     notifications,
@@ -87,6 +88,7 @@ app.include_router(jobs.router, prefix="/jobs", tags=["jobs"])
 app.include_router(career.router, prefix="/career", tags=["career"])
 app.include_router(applications.router, prefix="/applications", tags=["applications"])
 app.include_router(cover_letters.router, prefix="/cover-letters", tags=["cover-letters"])
+app.include_router(extension.router, prefix="/extension", tags=["extension"])
 app.include_router(interviews.router, prefix="/interviews", tags=["interviews"])
 app.include_router(automation.router, prefix="/automation", tags=["automation"])
 app.include_router(admin.router, prefix="/admin", tags=["admin"])

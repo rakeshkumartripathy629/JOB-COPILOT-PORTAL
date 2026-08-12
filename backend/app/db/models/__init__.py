@@ -20,6 +20,7 @@ from app.db.models.career import (
 )
 from app.db.models.company import Company
 from app.db.models.cover_letter import CoverLetter
+from app.db.models.extension import ExtensionFillLog, ExtensionLog, ExtensionSession
 from app.db.models.interview_question import InterviewQuestion
 from app.db.models.job import Job
 from app.db.models.job_search_result import JobSearchResult
@@ -50,6 +51,9 @@ __all__ = [
     "CareerFact",
     "Company",
     "CoverLetter",
+    "ExtensionFillLog",
+    "ExtensionLog",
+    "ExtensionSession",
     "InterviewQuestion",
     "Job",
     "JobMatchEvidence",
