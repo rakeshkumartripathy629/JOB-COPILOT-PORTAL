@@ -34,6 +34,9 @@ class User(Base):
     career_evidence = relationship("CareerEvidence", back_populates="user", cascade="all, delete-orphan")
     requirement_matches = relationship("JobRequirementMatch", back_populates="user", cascade="all, delete-orphan")
     match_evidence = relationship("JobMatchEvidence", back_populates="user", cascade="all, delete-orphan")
+    extension_sessions = relationship("ExtensionSession", back_populates="user", cascade="all, delete-orphan")
+    extension_fill_logs = relationship("ExtensionFillLog", back_populates="user", cascade="all, delete-orphan")
+    extension_logs = relationship("ExtensionLog", back_populates="user", cascade="all, delete-orphan")
 
 
 user_skills = Table(
