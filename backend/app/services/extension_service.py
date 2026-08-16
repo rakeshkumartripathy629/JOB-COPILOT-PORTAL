@@ -65,9 +65,9 @@ SENSITIVE_FIELDS = {
 }
 
 _SENSITIVE_KEYWORDS = (
-    r"work authori[sz]ation|authori[sz]ed? to work|sponsor|visa|disability|veteran|gender|race|"
-    r"ethnicit|criminal|felony|arrest|salary histor|ssn|social security|date of birth|"
-    r"legal right|citizen|nationalit"
+    r"work authori[sz]ation|authori[sz]ed to work|legally authori[sz]ed|sponsor|visa|"
+    r"disability|veteran|gender|race|ethnicit|criminal|felony|arrest|salary histor|"
+    r"ssn|social security|date of birth|legal right|citizen|nationalit"
 )
 
 # Fields that may be auto-filled from verified vault/profile data (spec section 14).
